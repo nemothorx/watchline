@@ -18,11 +18,28 @@ count=-1                # count is a limit before stopping. -1=unlimited
 
 tput sc
 
+# TODO
+# * the "while true" loop should be the outer wrap, so the sleep logic is shared, not duplicated. Then run the "case" logic within each loop (ick, but better)
+# * refactor to use `sleepenh` for improved timing accuracy
+
 case $1 in
     mdadm)
         while true ; do 
             status=$(awk '/finish/ {print $1,$4,$6,$7}' < /proc/mdstat )
             echo -n "$(date +%T) $status "
+            # TODO: check if it's done and if so, break the loop and exit
+            [ -z "$status" ] && echo "" && break
+            sleep $sleeptime
+            tally=$((tally+1))
+            [ $tally -ge $limit ] && echo "" && tally=0
+            [ $tally -eq $count ] && echo "" && break
+            tput rc
+        done
+        ;;
+    uptime)
+        while true ; do 
+            status=$(uptime)
+            echo -n "$status "
             # TODO: check if it's done and if so, break the loop and exit
             [ -z "$status" ] && echo "" && break
             sleep $sleeptime
@@ -52,7 +69,3 @@ case $1 in
         done
         ;;
 esac
-
-
-
-
