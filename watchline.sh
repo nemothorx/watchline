@@ -20,6 +20,8 @@ tput sc
 
 # TODO
 # * the "while true" loop should be the outer wrap, so the sleep logic is shared, not duplicated. Then run the "case" logic within each loop (ick, but better)
+# ...outside = case ... means duplicated code
+# ...outside = loop ... means duplicated "run case statement"
 # * refactor to use `sleepenh` for improved timing accuracy
 
 case $1 in
