@@ -16,7 +16,6 @@ limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe l
 tally=$((limit-1))	# tally is internal counting
 count=-1                # count is a limit before stopping. -1=unlimited
 
-tput sc
 
 # TODO
 # * the "while true" loop should be the outer wrap, so the sleep logic is shared, not duplicated. Then run the "case" logic within each loop (ick, but better)
@@ -35,7 +34,7 @@ case $1 in
             tally=$((tally+1))
             [ $tally -ge $limit ] && echo "" && tally=0
             [ $tally -eq $count ] && echo "" && break
-            tput rc
+            tput cub 80 # I get issues on screen if I use $COLUMNS :(
         done
         ;;
     uptime)
@@ -48,7 +47,7 @@ case $1 in
             tally=$((tally+1))
             [ $tally -ge $limit ] && echo "" && tally=0
             [ $tally -eq $count ] && echo "" && break
-            tput rc
+            tput cub 80 # I get issues on screen if I use $COLUMNS :(
         done
         ;;
     df)
@@ -57,7 +56,6 @@ case $1 in
         echo $limit
         filter=${2:-/home}
         echo "$(date +%T) $(df -BG | head -1 | cut -c 11- )"
-        tput sc
         while true ; do 
             status=$(df -BG | grep -m 1 $filter | cut -c 11- | tr -d "\n")
             echo -n "$(date +%T) $status "
@@ -67,7 +65,7 @@ case $1 in
             [ $tally -ge $limit ] && echo "" && tally=0
             [ $tally -eq $count ] && echo "" && break
             sleep $sleeptime
-            tput rc
+            tput cub 80 # I get issues on screen if I use $COLUMNS :(
         done
         ;;
 esac
