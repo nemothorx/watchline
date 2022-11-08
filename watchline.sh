@@ -7,6 +7,7 @@
 # 00:04:57 [=================>...] 86.3% finish=116.2min speed=93676K/sec
 # 
 #...last line updated every second, then newline every 10min by default
+# ...note: "mdadm" watch output has been updated since that example
 
 # this should be different per watch type tbh
 sleeptime=1
@@ -26,8 +27,14 @@ count=-1                # count is a limit before stopping. -1=unlimited
 case $1 in
     mdadm)
         while true ; do 
-            status=$(awk '/finish/ {print $1,$4,$6,$7}' < /proc/mdstat )
-            echo -n "$(date +%T) $status "
+            status=$(awk '/finish/ { 
+                gsub(/speed=/,"",$7)
+                gsub(/\..min/,"min",$6)
+                gsub(/finish=/,"",$6)
+                {print $1,$4,$7,"eta="$6}
+            } ' < /proc/mdstat )
+            # the "finish" time is munged above so it can be used in date below
+            echo -n "$(date +%T) $status = $(date -d "now +${status##*=}" +"%b%d %T") "
             # TODO: check if it's done and if so, break the loop and exit
             [ -z "$status" ] && echo "" && break
             sleep $sleeptime
