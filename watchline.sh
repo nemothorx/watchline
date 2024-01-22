@@ -5,7 +5,7 @@ sleeptime=1
 limitm=${3:-10}  # limit in minutes
 limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe limit
 
-tally=$((limit-1))	# tally is internal counting
+tally=$((limit-1))	# tally is internal counting. Starts high to force early newline
 count=-1                # count is a limit before stopping. -1=unlimited
 
 
@@ -84,4 +84,28 @@ case $1 in
             tput cub 80 # I get issues on screen if I use $COLUMNS :(
         done
         ;;
+    du)
+        sleeptime=60
+        tstamp=$(sleepenh 0)
+        limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet the limit
+        tally=$((limit-1))	# tally is internal counting. Starts high to force early newline
+        echo "# Refresh/$sleeptime sec, newline/$limit min. Ends on sustained 0M/min changerate"
+        filter=${2:-.}
+#        echo "$(date +%FT%T) $(du -BM -c $filter | tail -1 ) $filter "
+        while true ; do 
+            tally=$((tally+1))
+            [ ! -d "$filter" ] && echo "" && break
+            duout=$(du -BM -c $filter 2>/dev/null | tail -1 | tr -d -c "0-9")
+            status="${duout}M $filter"
+            echo -e -n "\r$(tput el)$(date +%FT%T) $status "
+            [ -n "$sizeref" ] && echo -n "(changing at $(echo "scale=1;((($duout-$sizeref)/$tally))" | bc)M/min)"
+            # TODO: check if it's done and if so, break the loop and exit
+            [ -z "$duout" ] && echo "" && break
+            [ $tally -eq $count ] && echo "" && break
+            [ $tally -ge $limit ] && [ -n "$sizeref" ] && [ $duout -eq $sizeref ] && echo "" && break
+            [ $tally -ge $limit ] && echo "" && sizeref=$duout && tally=0
+            tstamp=$(sleepenh $tstamp $sleeptime)
+        done
+
+
 esac
