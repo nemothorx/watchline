@@ -73,7 +73,7 @@ case $1 in
         filter=${2:-/home}
         echo "$(date +%T) $(df -BG | head -1 | cut -c 11- )"
         while true ; do 
-            status=$(df -BG | grep -m 1 $filter | cut -c 11- | tr -d "\n")
+            status=$(df -BM | grep -m 1 $filter | cut -c 11- | tr -d "\n")
             echo -n "$(date +%T) $status "
             # TODO: check if it's done and if so, break the loop and exit
             [ -z "$status" ] && echo "" && break
