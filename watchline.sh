@@ -95,7 +95,7 @@ case $1 in
         while true ; do 
             tally=$((tally+1))
             [ ! -d "$filter" ] && echo "" && break
-            duout=$(du -BM -c $filter 2>/dev/null | tail -1 | tr -d -c "0-9")
+            duout=$(du -BM -c "$filter" 2>/dev/null | tail -1 | tr -d -c "0-9")
             status="${duout}M $filter"
             echo -e -n "\r$(tput el)$(date +%FT%T) $status "
             [ -n "$sizeref" ] && echo -n "(changing at $(echo "scale=1;((($duout-$sizeref)/$tally))" | bc)M/min)"
