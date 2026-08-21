@@ -5,7 +5,7 @@ sleeptime=1
 limitm=${3:-10}  # limit in minutes
 limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe limit
 
-tally=$((limit-1))	# tally is internal counting. Starts high to force early newline
+tally=$((limit-1))      # tally is internal counting. Starts high to force early newline
 count=-1                # count is a limit before stopping. -1=unlimited
 
 
@@ -14,19 +14,194 @@ count=-1                # count is a limit before stopping. -1=unlimited
 # ...outside = case ... means duplicated code
 # ...outside = loop ... means duplicated "run case statement"
 # * refactor to use `sleepenh` for improved timing accuracy
+#   # or use multiples of diff between start runtime and each loop, via calls to `date` ??
 
 case $1 in
-    mdadm)
+    mdadm-new)
+        sleeptime=2
+        limitm=${3:-10}  # limit in minutes
+        limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe limit
+
+        tally=$((limit-1))      # tally is internal counting. Starts high to force early newline
+        count=-1                # count is a limit before stopping. -1=unlimited
+        # TODO: merge with mdadm/mdadm-old?
+            # This version obtains the very key info, and generating 100% own output format:
+            # - OG bar graph is one char per 5%, but box drawing characters allows for 0.25% resolution in 50 chars
+            # - stats/info overlaid on the graph
+        blkbg=$(tput setab 15)
+        whtbg=$(tput setab 15)
+        whtfg=$(tput setaf 15)
+        redfg=$(tput setaf 9)
+        ylwbg=$(tput setab 11)
+        ylwfg=$(tput setaf 11)
+        blkfg=$(tput setaf 0)
+        rev=$(tput rev)
+        rset=$(tput sgr0)
+        cub200=$(tput cub 200)
+
+        bar=$ylwbg$ylwfg
+        barwords=$ylwbg$blkfg
+        while true ; do
+            mdparsed=$(awk '
+                /^md/ {md=$1}
+                /finish/ { 
+                  gsub(/%/,"",$4)       # s/%//g on percentage
+                  gsub(/finish=/,"",$6) # drop "finish=" before eta
+                  gsub(/\min/,"",$6)    # capture the numeric float of eta
+                  gsub(/speed=/,"",$7)  # drop "speed=" before speed
+                  gsub(/K.sec/,"",$7)   # drop units (K/sec) after speed
+                  {printf "%s pctdone: %s tfrrateM/s: %.0f etamin: %.0f\n", md, $4, $7/1024, $6}
+            } ' < /proc/mdstat)
+                    # output be like this for parsing:
+                        # md3 pctdone: 67.5 tfrrateM/s: 104 etamin: 789
+            # note: we keep the provided pct because it truncates (always round down) which makes more sense at the 99.9% stage
+            # but take the eta and tfs speeds rounded (sometimes up)
+            
+            # nothing found to show? then we finish up
+            [ -z "$mdparsed" ] && echo "" && break
+
+            echo "$mdparsed" | while read md pcttag pct ratetag rate etatag eta ; do
+                pctint="${pct%.*}" # truncate pct to integer
+                pctdec="${pct#*.}" # decimal component of pct
+                etad=$(($eta/1440))  # integer days of the eta
+                etadm=$(($eta%1440)) # leftover min
+                etah=$(printf "%02d" $(($etadm/60))) # integer hours 
+                etam=$(printf "%02d" $(($etadm%60))) # integer min leftover
+                tgtdate=$(date -d "now +$eta min" +"%d%b %T")
+
+                # template with dates and bar borders
+                printf "${rset}%8s [ %49s] %14s " "$(date +%T)" " " "$tgtdate"
+
+                # generate empty bar
+                printf "%s" $cub200    # move to start of line
+                tput cuf 10     # move to start of bar
+                barlength=$(((pctint/2)))
+
+                # only draw the empty bar on a new line
+                if [ "$refresh" == false ] ; then
+                    tput cuf $barlength
+                else        # full redraw of the bar
+                    printf "${bar}%${barlength}s${rset}" ">"
+                fi
+
+                # replace end of inverted bar with shading
+                a="░" ;     b="▒" ;     c="▓" ;     d="█"
+                case $barlength in
+                    0) 
+                        tput cub 1
+                        ;;
+                    1) 
+                        tput cub 1
+                        printf "${ylwbg}${ylwfg}$d${rset}${ylwfg}"
+                        ;;
+                    2)
+                        tput cub 2
+                        printf "${ylwbg}${ylwfg}$c$d${rset}${ylwfg}"
+                        ;;
+                    3)
+                        tput cub 3
+                        printf "${ylwbg}${ylwfg}$b$c$d${rset}${ylwfg}"
+                        ;;
+                    *)
+                        tput cub 4
+                        printf "${ylwbg}${ylwfg}$a$b$c$d${rset}${ylwfg}"
+                        ;;
+                esac
+
+                # add extra fractional bar length
+                # TODO: this is in white for first <2%
+                #   and doesn;t work at all for <0.2% where a full 2% block is shown instead (it's the ">" and is in yellow) and text is white
+                [ $pctint -lt 2 ] && tput cub 1 && printf "[${ylwfg}"    # this should fix the first 2% bar
+
+                if [ $((pctint%2)) -eq 0 ] ; then # even
+                    case $pctdec in
+                        0|1) printf " " ;;
+                        2|3|4) printf "▏" ;;
+                        5|6) printf "▎" ;;
+                        7|8|9) printf "▍" ;;
+                    esac
+                else        #  odd
+                    case $pctdec in
+                        0|1) printf "▌" ;;
+                        2|3|4) printf "▋" ;;
+                        5|6) printf "▊" ;;
+                        7|8|9) printf "▉" ;;
+                    esac
+                fi
+
+                # now let's overlay details
+                #tput cub 200        # move to start of line
+                printf "%s" $cub200    # move to start of line
+                tput cuf 10         # move to start of bar
+                if [ $pctint -lt 20 ] ; then
+                    tput cuf 9
+                    # TODO: this is a bit flickery. can it be improved?
+                    printf  " %-9s %-9s %-9s %-9s " "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                elif [ $pctint -ge 20 ] && [ $pctint -lt 40 ] ; then
+                    printf "${barwords} %-8s${rset}" "$md"
+                    #tput cub 200    # move to start of line
+                    printf "%s" $cub200    # move to start of line
+                    tput cuf 30     # move right some
+                    printf "${ylwfg} %-9s %-9s %-9s" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                elif [ $pctint -ge 40 ] && [ $pctint -lt 60 ] ; then
+                    printf "${barwords} %-8s %-9s${rset}" "$md" "${pct}%"
+                    #tput cub 200    # move to start of line
+                    printf "%s" $cub200    # move to start of line
+                    tput cuf 40     # move right some
+                    printf "${ylwfg} %-9s %-9s" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                elif [ $pctint -ge 60 ] && [ $pctint -lt 80 ] ; then
+                    printf "${barwords} %-8s %-9s %-8s${rset}" "$md" "${pct}%" "${rate}M/s"
+                    #tput cub 200    # move to start of line
+                    printf "%s" $cub200    # move to start of line
+                    tput cuf 50     # move right some
+                    printf "${ylwfg} %-9s" "${etad}d${etah}h${etam}m" 
+                else
+                    printf "${barwords} %-8s %-9s %-9s %-9s${rset}" "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m"
+                    #tput cub 200    # move to start of line
+                    printf "%s" $cub200    # move to start of line
+                    tput cuf $(((pctint/2)+11))     # move right some
+                    if [ $pctint -lt 98 ] ; then
+                        remain=$(echo ".........." | cut -c 1-$(((50-(pctint/2)-1))))
+                        printf "%s" ${remain}
+                    fi
+                fi
+                # finally, move to the end
+                tput cuf 100 # move to end
+                printf "${rset}"    #
+#                tput cub 3 # move back      # debug
+#                printf "%s" "$barlength"    # debug
+            done
+
+            ## Unicode notes
+            # - glowing trail     " ░▒▓█" (4 char) with a lead of the partials via BLOCK 
+            #   ▏▎▍▌▋▊▉█  <-- 8 partials
+            # other unicode to consider... themes?
+            # #   - pointed?       ████🭬
+            # #   - pointed trail? ░▒▓█🭬
+            # ㎧ - this is metres per second, but could use for Meg/sec in a pinch - saves 2 char width
+            
+            sleep $sleeptime
+            tally=$((tally+1))
+            [ $tally -ge $limit ] && echo "" && refresh=true && tally=0
+            [ $tally -eq $count ] && echo "" && break
+            tput cub 80 # I get issues on screen if I use $COLUMNS :(
+        done
+    ;;
+
+
+    mdadm|mdadm-old)
+            # mdadm-new and mdadm-old explicitely denote two styles
+            # "mdadm" is whatever is default of those
 # output be like
-#00:44:54 [==================>..] 94.4% 95918K/sec fin=75min = Nov09 01:59:54   
-#00:54:58 [===================>.] 95.1% 103751K/sec fin=60min = Nov09 01:54:58  
-#01:05:03 [===================>.] 95.9% 96878K/sec fin=54min = Nov09 01:59:03   
-#01:15:08 [===================>.] 96.6% 98187K/sec fin=43min = Nov09 01:58:08   
-#01:25:13 [===================>.] 97.3% 98362K/sec fin=34min = Nov09 01:59:13   
-#01:35:18 [===================>.] 98.1% 97589K/sec fin=24min = Nov09 01:59:18   
-#01:45:22 [===================>.] 98.8% 80597K/sec fin=18min = Nov09 02:03:22   
-#01:55:27 [===================>.] 99.5% 86027K/sec fin=7min = Nov09 02:02:27    
-#02:03:44  = Nov09 02:03:44 ==>.] 99.9% 66800K/sec fin=0min = Nov09 02:03:43    
+#03:33:59 [===================>.] 97.8% 79763K/sec eta=70min = Aug17 04:43:59 
+#03:44:06 [===================>.] 98.1% 77538K/sec eta=62min = Aug17 04:46:06 
+#03:54:14 [===================>.] 98.4% 73605K/sec eta=55min = Aug17 04:49:14 
+#04:04:22 [===================>.] 98.7% 70948K/sec eta=47min = Aug17 04:51:22 
+#04:14:30 [===================>.] 98.9% 74283K/sec eta=35min = Aug17 04:49:30 
+#04:24:38 [===================>.] 99.2% 66304K/sec eta=28min = Aug17 04:52:38 
+#04:34:46 [===================>.] 99.5% 73502K/sec eta=15min = Aug17 04:49:46 
+#04:44:54 [===================>.] 99.8% 69637K/sec eta=5min = Aug17 04:49:54  
+#04:50:03  = Aug17 04:50:03 ==>.] 99.9% 74219K/sec eta=0min = Aug17 04:50:02 
 #...last line updated every second, then newline every 10min by default
         while true ; do 
             status=$(awk '/finish/ { 
@@ -35,12 +210,11 @@ case $1 in
                 gsub(/finish=/,"",$6)
                 {print $1,$4,$7,"eta="$6}
             } ' < /proc/mdstat )
-            # TODO: consider obtaining only the very key info, and generating 100% own output format:
-            # - current bar graph is one char per 5%, but box drawing characters allows for 100 tickmarks in only 10 characters width, or 0.5% resolution at current width
-            # - % count could be overlaid on the graph
-            # - graph could even be 50char width at 2% resolution and purely colourised. See internode era internet graph for earlier implementation of idea (myinternode.sh -v) (dynamic width?!)
-            # - give speed in M/sec not K/sec
-            # - improve ETA format (min away, hours away, end time)
+#04:14:30 [===================>.] 98.9% 74283K/sec eta=35min = Aug17 04:49:30 
+#1234567890123456789012345678901234567890123456789012345678901234567890123456789
+#         1         2         3         4         5         6         7         
+
+# 2% per char but we can use box drawing to have .25% steps (8 horizontal steps within a single character width)
             # the "finish" time is munged above so it can be used in date below
             # ...note, the final line (that has no "finish" match) should also render sanely pls
             echo -n "$(date +%T) $status = $(date -d "now +${status##*=}" +"%b%d %T") "
