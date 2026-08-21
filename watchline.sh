@@ -17,7 +17,7 @@ count=-1                # count is a limit before stopping. -1=unlimited
 #   # or use multiples of diff between start runtime and each loop, via calls to `date` ??
 
 case $1 in
-    mdadm-new)
+    mdadm-new|mdstat-new)
         sleeptime=2
         limitm=${3:-10}  # limit in minutes
         limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe limit
@@ -134,27 +134,27 @@ case $1 in
                 printf "%s" $cub200    # move to start of line
                 tput cuf 10         # move to start of bar
                 if [ $pctint -lt 20 ] ; then
-                    tput cuf 9
+                    tput cuf 10
                     # TODO: this is a bit flickery. can it be improved?
-                    printf  " %-9s %-9s %-9s %-9s " "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                    printf  "%-9s %-9s %-9s %-9s " "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 20 ] && [ $pctint -lt 40 ] ; then
                     printf "${barwords} %-8s ${rset}" "$md"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 29     # move right some
-                    printf "${ylwfg} %-9s %-9s %-9s" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                    tput cuf 30     # move right some
+                    printf "${ylwfg}%-9s %-9s %-9s" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 40 ] && [ $pctint -lt 60 ] ; then
                     printf "${barwords} %-8s %-9s${rset}" "$md" "${pct}%"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 39     # move right some
-                    printf "${ylwfg} %-9s %-9s" "${rate}M/s" "${etad}d${etah}h${etam}m" 
+                    tput cuf 40     # move right some
+                    printf "${ylwfg}%-9s %-9s" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 60 ] && [ $pctint -lt 80 ] ; then
                     printf "${barwords} %-8s %-9s %-8s${rset}" "$md" "${pct}%" "${rate}M/s"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 49     # move right some
-                    printf "${ylwfg} %-9s" "${etad}d${etah}h${etam}m" 
+                    tput cuf 50     # move right some
+                    printf "${ylwfg}%-9s" "${etad}d${etah}h${etam}m" 
                 else
                     printf "${barwords} %-8s %-9s %-9s %-9s${rset}" "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m"
                     #tput cub 200    # move to start of line
@@ -189,7 +189,7 @@ case $1 in
     ;;
 
 
-    mdadm|mdadm-old)
+    mdadm|mdstat|mdadm-old|mdstat-old)
             # mdadm-new and mdadm-old explicitely denote two styles
             # "mdadm" is whatever is default of those
 # output be like
