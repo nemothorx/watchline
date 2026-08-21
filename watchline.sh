@@ -138,22 +138,22 @@ case $1 in
                     # TODO: this is a bit flickery. can it be improved?
                     printf  " %-9s %-9s %-9s %-9s " "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 20 ] && [ $pctint -lt 40 ] ; then
-                    printf "${barwords} %-8s${rset}" "$md"
+                    printf "${barwords} %-8s ${rset}" "$md"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 30     # move right some
+                    tput cuf 29     # move right some
                     printf "${ylwfg} %-9s %-9s %-9s" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 40 ] && [ $pctint -lt 60 ] ; then
                     printf "${barwords} %-8s %-9s${rset}" "$md" "${pct}%"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 40     # move right some
+                    tput cuf 39     # move right some
                     printf "${ylwfg} %-9s %-9s" "${rate}M/s" "${etad}d${etah}h${etam}m" 
                 elif [ $pctint -ge 60 ] && [ $pctint -lt 80 ] ; then
                     printf "${barwords} %-8s %-9s %-8s${rset}" "$md" "${pct}%" "${rate}M/s"
                     #tput cub 200    # move to start of line
                     printf "%s" $cub200    # move to start of line
-                    tput cuf 50     # move right some
+                    tput cuf 49     # move right some
                     printf "${ylwfg} %-9s" "${etad}d${etah}h${etam}m" 
                 else
                     printf "${barwords} %-8s %-9s %-9s %-9s${rset}" "$md" "${pct}%" "${rate}M/s" "${etad}d${etah}h${etam}m"
