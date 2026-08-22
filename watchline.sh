@@ -17,7 +17,7 @@ count=-1                # count is a limit before stopping. -1=unlimited
 #   # or use multiples of diff between start runtime and each loop, via calls to `date` ??
 
 case $1 in
-    mdadm-new|mdstat-new)
+    mdadm|mdstat|mdadm-new|mdstat-new)
         sleeptime=2
         limitm=${3:-10}  # limit in minutes
         limit=$((limitm*60/$sleeptime)) # calculate how many round we need to meet uhe limit
@@ -189,7 +189,7 @@ case $1 in
     ;;
 
 
-    mdadm|mdstat|mdadm-old|mdstat-old)
+    mdadm-old|mdstat-old)
             # mdadm-new and mdadm-old explicitely denote two styles
             # "mdadm" is whatever is default of those
 # output be like
